@@ -1,4 +1,4 @@
-name: ci/cd pipeline to deploy tomcat
+name: ci/cd pipeline to deploy to nexus artifact
 on:
  push:
    branches: master
@@ -20,11 +20,21 @@ jobs:
       - name: maven test
         run: mvn test
       - name: maven package
-        run: mvn package 
-      - name: Deploy to Tomcat
+        run: mvn package  
+      - name: Configure Maven settings.xml for Nexus
         run: |
-                curl -v -u ${{ secrets.TOMCAT_USER }}:${{ secrets.TOMCAT_PASSWORD }} \
-                -T target/TrainBook-1.0.0-SNAPSHOT.war \
-                "http://${{ secrets.TOMCAT_HOST }}:8080/manager/text/deploy?path=/Train-Booking&update=true"
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <servers>
+              <server>
+                <id>nexus</id>
+                <username>${{ secrets.NEXUS_USERNAME }}</username>
+                <password>${{ secrets.NEXUS_PASSWORD }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
 
-      
+      - name: Upload Artifact to Nexus
+        run: mvn deploy -DaltDeploymentRepository=nexus::default::${{ secrets.NEXUS_REPO_URL }}
